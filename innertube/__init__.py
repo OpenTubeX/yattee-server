@@ -13,7 +13,7 @@ from innertube._browse import (
     get_trending,
 )
 from innertube._client import InnerTubeError, get_client, innertube_get, innertube_post
-from innertube._comments import get_comments
+from innertube._comments import CommentsDisabledError, get_comments
 from innertube._playlists import get_playlist
 from innertube._search import search, search_channel
 from innertube._suggestions import get_search_suggestions
@@ -29,6 +29,7 @@ def is_enabled() -> bool:
 
 
 __all__ = [
+    "CommentsDisabledError",
     "InnerTubeError",
     "get_channel_info",
     "get_channel_playlists",

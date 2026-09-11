@@ -7,9 +7,16 @@ them to Invidious-compatible format for the existing client API.
 import logging
 from typing import Any, Dict, List, Optional
 
-from innertube._client import innertube_post
+from innertube._client import InnerTubeError, innertube_post
 
 logger = logging.getLogger("innertube")
+
+
+class CommentsDisabledError(InnerTubeError):
+    """The video owner turned comments off."""
+
+    def __init__(self) -> None:
+        super().__init__("Comments are disabled", status_code=404, is_retryable=False)
 
 
 def _extract_text(runs_or_text: Any) -> str:
@@ -154,6 +161,22 @@ def _parse_count(text: str) -> int:
         return int(text)
     except ValueError:
         return 0
+
+
+def _comments_turned_off(data: Dict[str, Any]) -> bool:
+    """Detect the "Comments are turned off" placeholder in a /next response.
+
+    When the owner disables comments, YouTube omits the comments engagement
+    panel and renders a messageRenderer inside the comment item section of
+    the watch page instead of a continuation.
+    """
+    results = data.get("contents", {}).get("twoColumnWatchNextResults", {}).get("results", {}).get("results", {})
+    for item in results.get("contents", []):
+        section = item.get("itemSectionRenderer", {})
+        if section.get("sectionIdentifier") != "comment-item-section":
+            continue
+        return any("messageRenderer" in content for content in section.get("contents", []))
+    return False
 
 
 def _find_comment_section(data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -366,6 +389,7 @@ async def get_comments(video_id: str, continuation: Optional[str] = None) -> Dic
         Dict with keys: comments (list), continuation (str or None)
 
     Raises:
+        CommentsDisabledError: When the owner turned comments off
         InnerTubeError: On API errors
     """
     if continuation:
@@ -381,6 +405,9 @@ async def get_comments(video_id: str, continuation: Optional[str] = None) -> Dic
     # Find the comment section continuation token
     comment_section = _find_comment_section(data)
     if not comment_section or not comment_section.get("continuation"):
+        if _comments_turned_off(data):
+            logger.info(f"[InnerTube] Comments are turned off for {video_id}")
+            raise CommentsDisabledError()
         logger.debug(f"[InnerTube] No comment section found for {video_id}")
         return {"commentCount": None, "comments": [], "continuation": None}
 

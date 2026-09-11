@@ -49,6 +49,8 @@ async def get_comments(
     Get comments for a video.
 
     Tries InnerTube first (direct YouTube API), falls back to Invidious if configured.
+    Responds 404 when the video owner turned comments off so clients can show a
+    dedicated message instead of a generic error.
     """
     # Try InnerTube first
     try:
@@ -57,6 +59,8 @@ async def get_comments(
             logger.info(f"[Comments] InnerTube success for {video_id}: {len(data['comments'])} comments")
             return data
         logger.debug(f"[Comments] InnerTube returned no comments for {video_id}, trying Invidious")
+    except innertube.CommentsDisabledError:
+        raise HTTPException(status_code=404, detail="Comments are disabled")
     except innertube.InnerTubeError as e:
         logger.debug(f"[Comments] InnerTube error for {video_id}: {e}")
 
@@ -74,6 +78,9 @@ async def get_comments(
 
             return data
         except invidious_proxy.InvidiousProxyError as e:
+            if e.status_code == 404:
+                # Invidious answers "Comments not found." for videos with comments turned off
+                raise HTTPException(status_code=404, detail="Comments are disabled")
             raise HTTPException(status_code=502, detail=f"Comments proxy error: {e}")
 
     # Neither source available — return empty rather than 503
