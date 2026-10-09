@@ -133,3 +133,36 @@ def test_legacy_compact_video_renderer_still_parses():
     out = _recommended_videos_from_next(nxt)
     assert [v["videoId"] for v in out] == ["abc12345678"]
     assert out[0]["title"] == "Legacy video"
+
+
+def test_unlinked_author_takes_channel_id_from_avatar():
+    item = _lockup("vid3", "Plain Author")
+    metadata = item["lockupViewModel"]["metadata"]["lockupMetadataViewModel"]
+    author_part = metadata["metadata"]["contentMetadataViewModel"]["metadataRows"][0]["metadataParts"][0]
+    del author_part["text"]["commandRuns"]
+    metadata["image"] = {
+        "decoratedAvatarViewModel": {
+            "rendererContext": {
+                "commandContext": {
+                    "onTap": {
+                        "innertubeCommand": {
+                            "browseEndpoint": {"browseId": "UCavatar456"}
+                        }
+                    }
+                }
+            }
+        }
+    }
+    nxt = {
+        "contents": {
+            "twoColumnWatchNextResults": {
+                "secondaryResults": {"secondaryResults": {"results": [item]}}
+            }
+        }
+    }
+
+    result = _recommended_videos_from_next(nxt)
+
+    assert len(result) == 1
+    assert result[0]["author"] == "Some Channel"
+    assert result[0]["authorId"] == "UCavatar456"

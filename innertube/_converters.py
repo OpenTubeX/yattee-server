@@ -1019,6 +1019,20 @@ def _lockup_video_view_model_to_invidious(renderer: Dict[str, Any]) -> Optional[
         if author_id:
             break
 
+    # Unlinked author names (the current shape) carry the channel ID only on
+    # the avatar's tap command.
+    if not author_id:
+        author_id = (
+            metadata_vm.get("image", {})
+            .get("decoratedAvatarViewModel", {})
+            .get("rendererContext", {})
+            .get("commandContext", {})
+            .get("onTap", {})
+            .get("innertubeCommand", {})
+            .get("browseEndpoint", {})
+            .get("browseId", "")
+        )
+
     # Fallback: first metadata row with a single plain-text part is usually the author
     if not author and rows:
         first_parts = rows[0].get("metadataParts", [])
