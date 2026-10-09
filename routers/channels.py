@@ -212,6 +212,14 @@ async def get_channel_videos_endpoint(
     channel_id: str, continuation: Optional[str] = Query(None, description="Continuation token for pagination")
 ):
     """Get channel videos (Invidious-compatible)."""
+
+    # The Videos tab never lists shorts (they have their own tab) — tag every item
+    # so clients can rely on `isShort` whatever the source.
+    def _tag(items):
+        for item in items:
+            item.isShort = False
+        return items
+
     # Convert continuation to page number for yt-dlp (which uses page-based pagination)
     # For Invidious proxy, pass continuation token directly
     page = int(continuation) if continuation and continuation.isdigit() else 1
@@ -222,7 +230,7 @@ async def get_channel_videos_endpoint(
         try:
             data = await innertube.get_channel_videos(channel_id, continuation)
             if data and data.get("videos"):
-                video_items = [invidious_to_video_list_item(v) for v in data["videos"]]
+                video_items = _tag([invidious_to_video_list_item(v) for v in data["videos"]])
                 return ChannelVideosResponse(videos=video_items, continuation=data.get("continuation"))
         except innertube.InnerTubeError as e:
             logger.debug(f"[Channels] InnerTube channel videos error for {channel_id}: {e}")
@@ -233,7 +241,7 @@ async def get_channel_videos_endpoint(
                 data = await invidious_proxy.get_channel_videos(channel_id, continuation)
                 if data and "videos" in data:
                     invidious_base = invidious_proxy.get_base_url()
-                    video_items = [invidious_to_video_list_item(v, invidious_base) for v in data["videos"]]
+                    video_items = _tag([invidious_to_video_list_item(v, invidious_base) for v in data["videos"]])
                     return ChannelVideosResponse(videos=video_items, continuation=data.get("continuation"))
             except invidious_proxy.InvidiousProxyError:
                 pass
@@ -241,7 +249,7 @@ async def get_channel_videos_endpoint(
         # Fall back to yt-dlp for YouTube
         try:
             videos = await get_channel_videos(channel_id, page)
-            video_items = [ytdlp_to_video_list_item(video) for video in videos]
+            video_items = _tag([ytdlp_to_video_list_item(video) for video in videos])
             continuation = str(page + 1) if video_items else None
             return ChannelVideosResponse(videos=video_items, continuation=continuation)
         except ValueError as e:

@@ -45,6 +45,7 @@ class FeedVideoResponse(BaseModel):
     videoThumbnails: List[dict]
     extractor: str
     videoUrl: Optional[str]
+    isShort: Optional[bool] = None
 
 
 # =============================================================================
@@ -221,6 +222,8 @@ async def post_feed(data: StatelessFeedRequest):
                 videoThumbnails=thumbnails,
                 extractor=v["site"],
                 videoUrl=v["video_url"],
+                # YouTube feeds come from the channel Videos tab, which never lists shorts.
+                isShort=False if v["site"] == "youtube" else None,
             )
         )
 

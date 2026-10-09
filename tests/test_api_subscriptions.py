@@ -111,6 +111,8 @@ class TestPostFeed:
         assert data["status"] == "ready"
         assert data["ready_count"] == 1
         assert data["pending_count"] == 0
+        # YouTube feed rows come from the Videos tab, so they are never shorts
+        assert all(v["isShort"] is False for v in data["videos"] if v["extractor"] == "youtube")
 
     def test_post_feed_with_uncached_channels(self):
         """Test feed with uncached channels triggers fetch."""

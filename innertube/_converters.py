@@ -1110,7 +1110,9 @@ def _lockup_video_view_model_to_invidious(renderer: Dict[str, Any]) -> Optional[
         "publishedText": published_text or None,
         "liveNow": False,
         "isUpcoming": False,
-        "isShort": False,
+        # A video lockup looks the same for a short and a regular video, and
+        # playlists and recommendations mix both, so the renderer can't tell.
+        "isShort": None,
     }
 
 

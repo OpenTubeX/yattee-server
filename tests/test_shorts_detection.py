@@ -50,7 +50,7 @@ def test_shorts_lockup_view_model_marks_short():
     assert converted["isShort"] is True
 
 
-def test_lockup_view_model_video_is_not_short():
+def test_lockup_view_model_video_is_unknown():
     item = {
         "content": {
             "lockupViewModel": {
@@ -66,7 +66,7 @@ def test_lockup_view_model_video_is_not_short():
     }
     converted = rich_item_to_invidious(item)
     assert converted is not None
-    assert converted["isShort"] is False
+    assert converted["isShort"] is None
 
 
 def test_video_renderer_is_not_short():

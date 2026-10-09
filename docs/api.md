@@ -149,6 +149,8 @@ Get channel playlists.
 
 Get channel shorts.
 
+Every item is tagged `isShort: true`; items from `/channels/{channel_id}/videos` are tagged `false`. In other lists `isShort` is `true` when YouTube marks the item as a short, `false` when it marks it as a regular video, and `null` when it can't tell (playlists and recommended videos).
+
 **Path Parameters:**
 - `channel_id` (string) - Channel ID or @handle
 
@@ -263,6 +265,8 @@ Get a combined feed for a list of channels. The server maintains a background fe
 ```
 
 **Response:** Array of video entries from the requested channels, sorted by date.
+
+Each entry carries `isShort`: `false` for YouTube (feeds are built from each channel's Videos tab, which never lists shorts) and `null` for other sites.
 
 ---
 
