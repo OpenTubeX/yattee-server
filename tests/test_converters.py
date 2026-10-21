@@ -1613,3 +1613,50 @@ class TestDecodeXtags:
         })
         assert out["_xtags"] == {"acont": "original", "lang": "en-US"}
         assert _format_to_invidious({"itag": 137, "mimeType": "video/mp4"})["_xtags"] == {}
+
+
+class TestStreamByteRanges:
+    """DASH players need the byte ranges of the initialization and index sections."""
+
+    def test_format_to_invidious_converts_byte_ranges(self):
+        from innertube._converters import _format_to_invidious
+
+        out = _format_to_invidious({
+            "itag": 248,
+            "mimeType": 'video/webm; codecs="vp9"',
+            "initRange": {"start": "0", "end": "219"},
+            "indexRange": {"start": "220", "end": "1838"},
+        })
+        assert out["init"] == "0-219"
+        assert out["index"] == "220-1838"
+
+        without_ranges = _format_to_invidious({"itag": 248, "mimeType": 'video/webm; codecs="vp9"'})
+        assert without_ranges["init"] is None
+        assert without_ranges["index"] is None
+
+    def test_byte_ranges_survive_the_merge_and_the_response(self, test_db):
+        from converters._invidious import invidious_to_video_response
+        from innertube import merge_stream_urls
+
+        it = {
+            "formatStreams": [],
+            "adaptiveFormats": [{"itag": "140", "url": "", "container": "m4a", "init": "0-631", "index": "632-1595"}],
+        }
+        _fs, af = merge_stream_urls(it, [{"format_id": "140", "url": "https://gv/videoplayback?itag=140"}])
+        info = {
+            "videoId": "abc123def45",
+            "title": "Test",
+            "author": "Author",
+            "authorId": "UC123",
+            "lengthSeconds": 60,
+            "videoThumbnails": [],
+            "authorThumbnails": [],
+            "captions": [],
+            "formatStreams": [],
+            "adaptiveFormats": [{**af[0], "type": 'audio/mp4; codecs="mp4a.40.2"'}],
+        }
+
+        resp = invidious_to_video_response(info, base_url="http://localhost", proxy_streams=True, proxy_mode="relay")
+        assert resp.adaptiveFormats[0].url.startswith("http://localhost/proxy/relay?")
+        assert resp.adaptiveFormats[0].init == "0-631"
+        assert resp.adaptiveFormats[0].index == "632-1595"

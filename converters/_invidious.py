@@ -180,6 +180,8 @@ def invidious_to_video_response(
                 itag=str(itag),
                 type=fmt.get("type", ""),
                 container=fmt.get("container", ""),
+                init=fmt.get("init"),
+                index=fmt.get("index"),
                 resolution=fmt.get("resolution"),
                 width=fmt.get("width"),
                 height=fmt.get("height"),
