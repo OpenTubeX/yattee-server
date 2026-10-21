@@ -5,6 +5,7 @@ import logging
 import os
 import platform
 import sys
+import urllib.parse
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -119,9 +120,31 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         return response
 
 
+class RelativeRedirectMiddleware(BaseHTTPMiddleware):
+    """Make redirects to this server relative.
+
+    Starlette builds absolute redirect URLs (e.g. when it adds or removes a
+    trailing slash) from the scheme uvicorn sees, which is `http` behind a
+    TLS-terminating reverse proxy. A relative location keeps the client on the
+    scheme and host it actually used.
+    """
+
+    async def dispatch(self, request: Request, call_next) -> Response:
+        response = await call_next(request)
+        location = response.headers.get("location")
+        if location and 300 <= response.status_code < 400:
+            target = urllib.parse.urlsplit(location)
+            if target.netloc and target.netloc == request.url.netloc:
+                response.headers["location"] = urllib.parse.urlunsplit(
+                    ("", "", target.path or "/", target.query, target.fragment)
+                )
+        return response
+
+
 def configure_middleware(app: FastAPI) -> None:
     """Add the middleware stack. The middleware added last runs first."""
     app.add_middleware(SecurityHeadersMiddleware)
+    app.add_middleware(RelativeRedirectMiddleware)
     # Only enforced once the first user exists
     app.add_middleware(BasicAuthMiddleware)
     # CORS has to run before authentication: browsers send preflight requests
