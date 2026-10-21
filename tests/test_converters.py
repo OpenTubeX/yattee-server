@@ -26,6 +26,7 @@ from converters import (
     parse_cookies_to_header,
     parse_upload_date,
     resolve_invidious_url,
+    ytdlp_to_playlist_list_item,
     ytdlp_to_video_list_item,
 )
 
@@ -985,6 +986,23 @@ class TestInvidiousToPlaylistListItem:
         result = invidious_to_playlist_list_item(info, "")
         assert len(result.videos) == 1
         assert result.videos[0].videoId == "abc123"
+
+    def test_unknown_video_count(self):
+        """Test that an unknown video count doesn't fail validation."""
+        info = {"playlistId": "PL123", "title": "Test Playlist", "videoCount": None}
+        result = invidious_to_playlist_list_item(info, "")
+        assert result.videoCount == 0
+
+
+class TestYtdlpToPlaylistListItem:
+    """Tests for ytdlp_to_playlist_list_item function."""
+
+    def test_unknown_playlist_count(self):
+        """Test that a channel tab entry without a playlist count doesn't fail validation."""
+        info = {"id": "PL123", "title": "Test Playlist", "playlist_count": None}
+        result = ytdlp_to_playlist_list_item(info)
+        assert result.playlistId == "PL123"
+        assert result.videoCount == 0
 
 
 # =============================================================================

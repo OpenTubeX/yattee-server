@@ -455,7 +455,7 @@ def invidious_to_playlist_list_item(info: dict, invidious_base_url: str = "") ->
         title=info.get("title", ""),
         author=info.get("author"),
         authorId=info.get("authorId"),
-        videoCount=info.get("videoCount", 0),
+        videoCount=info.get("videoCount") or 0,
         playlistThumbnail=playlist_thumbnail,
         videos=videos,
     )

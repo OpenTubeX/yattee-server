@@ -299,7 +299,7 @@ def ytdlp_to_playlist_list_item(info: dict) -> PlaylistListItem:
         title=info.get("title", ""),
         author=info.get("playlist_uploader") or info.get("playlist_channel"),
         authorId=info.get("playlist_channel_id") or info.get("playlist_uploader_id"),
-        videoCount=info.get("playlist_count", 0),
+        videoCount=info.get("playlist_count") or 0,
         playlistThumbnail=thumbnail_url,
         videos=[],  # yt-dlp flat-playlist doesn't include video details
     )
