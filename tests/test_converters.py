@@ -1728,3 +1728,36 @@ class TestRelayedHls:
 
         direct = ytdlp_to_video_response(info, "http://localhost", proxy_streams=False)
         assert direct.hlsUrl == self._hls_format()["manifest_url"]
+
+
+class TestChannelSearchResults:
+    """YouTube shows a channel's handle where the subscriber count used to be."""
+
+    def _renderer(self, subscriber_count_text, video_count_text):
+        return {
+            "channelId": "UC123",
+            "title": {"simpleText": "Test Channel"},
+            "subscriberCountText": {"simpleText": subscriber_count_text},
+            "videoCountText": {"simpleText": video_count_text},
+        }
+
+    def test_handle_and_subscriber_count(self):
+        from innertube._converters import channel_renderer_to_invidious
+
+        result = invidious_to_channel_list_item(
+            channel_renderer_to_invidious(self._renderer("@testchannel", "1.2M subscribers"))
+        )
+        assert result.channelHandle == "@testchannel"
+        assert result.subCount == 1_200_000
+        assert result.subCountText == "1.2M subscribers"
+        assert result.videoCount is None
+
+    def test_legacy_layout(self):
+        from innertube._converters import channel_renderer_to_invidious
+
+        result = invidious_to_channel_list_item(
+            channel_renderer_to_invidious(self._renderer("1.2M subscribers", "345 videos"))
+        )
+        assert result.channelHandle is None
+        assert result.subCount == 1_200_000
+        assert result.videoCount == 345

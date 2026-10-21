@@ -441,12 +441,18 @@ def channel_renderer_to_invidious(renderer: Dict[str, Any]) -> Dict[str, Any]:
     title = _extract_text(renderer.get("title"))
     description = _extract_text(renderer.get("descriptionSnippet"))
 
-    # Subscriber count
     sub_count_text = _extract_text(renderer.get("subscriberCountText"))
-    sub_count = _parse_count_text(sub_count_text)
-
-    # Video count
     video_count_text = _extract_text(renderer.get("videoCountText"))
+
+    # Channels with a handle show it in place of the subscriber count,
+    # which moves to the video count's place
+    channel_handle = None
+    if sub_count_text.startswith("@"):
+        channel_handle = sub_count_text
+        sub_count_text = video_count_text
+        video_count_text = ""
+
+    sub_count = _parse_count_text(sub_count_text)
     video_count = _parse_count_text(video_count_text)
 
     # Thumbnails
@@ -463,6 +469,7 @@ def channel_renderer_to_invidious(renderer: Dict[str, Any]) -> Dict[str, Any]:
         "type": "channel",
         "authorId": channel_id,
         "author": title,
+        "channelHandle": channel_handle,
         "description": description,
         "subCount": sub_count,
         "subCountText": sub_count_text,

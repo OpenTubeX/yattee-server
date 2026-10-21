@@ -423,6 +423,7 @@ def invidious_to_channel_list_item(info: dict, invidious_base_url: str = "") -> 
     return ChannelListItem(
         authorId=info.get("authorId", ""),
         author=info.get("author", ""),
+        channelHandle=info.get("channelHandle"),
         description=info.get("description"),
         subCount=info.get("subCount"),
         subCountText=info.get("subCountText"),

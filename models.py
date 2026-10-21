@@ -157,6 +157,7 @@ class ChannelListItem(BaseModel):
     type: str = "channel"
     authorId: str
     author: str
+    channelHandle: Optional[str] = None
     description: Optional[str] = None
     subCount: Optional[int] = None
     subCountText: Optional[str] = None
