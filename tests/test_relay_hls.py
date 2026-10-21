@@ -35,3 +35,32 @@ def test_segments_stay_on_https_behind_a_reverse_proxy(test_db, httpx_mock, monk
     assert response.status_code == 200
     variant = response.text.splitlines()[2]
     assert variant.startswith("https://yattee.example/proxy/relay?")
+
+
+SEGMENT_URL = "https://rr1---sn-abc.googlevideo.com/videoplayback/id/abc/itag/232/source/yt_live_broadcast/file/seg.ts"
+
+
+def test_head_requests_report_the_segment_type(test_db, httpx_mock, monkeypatch):
+    """Relay URLs have no file extension, so players ask for the segment type with HEAD."""
+    from routers import proxy
+    from routers.proxy import _relay, signed_relay_url
+
+    monkeypatch.setattr(_relay, "is_safe_url", lambda url: True)
+    httpx_mock.add_response(
+        url=SEGMENT_URL,
+        status_code=206,
+        # googlevideo labels live HLS segments as generic binary data
+        headers={"content-type": "application/octet-stream", "content-range": "bytes 0-0/1000"},
+        content=b"G",
+    )
+
+    app = FastAPI()
+    app.include_router(proxy.router, prefix="/proxy")
+    relay_url = signed_relay_url("http://testserver", SEGMENT_URL)
+
+    response = TestClient(app).head(relay_url.removeprefix("http://testserver"))
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "video/mp2t"
+    assert response.headers["content-length"] == "1000"
+    assert response.content == b""
