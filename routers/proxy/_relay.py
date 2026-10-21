@@ -44,6 +44,7 @@ import tokens as token_utils
 from egress import is_youtube_url, local_address_for
 from routers.proxy._streaming import router
 from settings import get_settings
+from utils import get_base_url
 from ytdlp_wrapper import is_safe_url
 
 logger = logging.getLogger(__name__)
@@ -415,7 +416,8 @@ async def relay(
         try:
             full = await client.get(url, headers={**upstream_headers})
             text = full.text
-            base_url_self = f"{request.url.scheme}://{request.url.netloc}"
+            # Honour X-Forwarded-Proto, so segments stay on HTTPS behind a reverse proxy
+            base_url_self = get_base_url(request)
             rewritten = _rewrite_hls(text, base_url=base_url_self, manifest_url=url, ttl_seconds=DEFAULT_TTL_SECONDS)
             headers = {"content-type": "application/vnd.apple.mpegurl"}
             for h in ("cache-control", "etag", "last-modified"):

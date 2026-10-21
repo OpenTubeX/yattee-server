@@ -1660,3 +1660,53 @@ class TestStreamByteRanges:
         assert resp.adaptiveFormats[0].url.startswith("http://localhost/proxy/relay?")
         assert resp.adaptiveFormats[0].init == "0-631"
         assert resp.adaptiveFormats[0].index == "632-1595"
+
+
+class TestRelayedHls:
+    """With relay proxying on, HLS manifests have to be relayed like the other streams."""
+
+    def _hls_format(self):
+        return {
+            "format_id": "96",
+            "protocol": "m3u8_native",
+            "url": "https://manifest.googlevideo.com/api/manifest/hls_playlist/id/abc/itag/96/index.m3u8",
+            "manifest_url": "https://manifest.googlevideo.com/api/manifest/hls_variant/id/abc/file/index.m3u8",
+            "height": 1080,
+            "width": 1920,
+        }
+
+    def test_hls_format_streams_are_relayed(self):
+        from converters import convert_formats
+
+        format_streams, _ = convert_formats(
+            [self._hls_format()],
+            video_id="abc123def45",
+            proxy_base_url="http://localhost/proxy",
+            proxy_mode="relay",
+            base_url="http://localhost",
+        )
+        assert len(format_streams) == 1
+        assert format_streams[0].url.startswith("http://localhost/proxy/relay?")
+        assert "hls_variant" in format_streams[0].url
+
+    def test_hls_format_streams_stay_direct_without_proxying(self):
+        from converters import convert_formats
+
+        format_streams, _ = convert_formats([self._hls_format()], video_id="abc123def45")
+        assert format_streams[0].url == self._hls_format()["manifest_url"]
+
+    def test_live_streams_expose_their_relayed_manifest(self):
+        from converters import ytdlp_to_video_response
+
+        info = {
+            "id": "abc123def45",
+            "title": "Live",
+            "is_live": True,
+            "formats": [self._hls_format()],
+        }
+        resp = ytdlp_to_video_response(info, "http://localhost", proxy_streams=True, proxy_mode="relay")
+        assert resp.hlsUrl.startswith("http://localhost/proxy/relay?")
+        assert "hls_variant" in resp.hlsUrl
+
+        direct = ytdlp_to_video_response(info, "http://localhost", proxy_streams=False)
+        assert direct.hlsUrl == self._hls_format()["manifest_url"]
