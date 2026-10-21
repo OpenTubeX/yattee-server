@@ -105,9 +105,6 @@ def configure_cors(app: FastAPI) -> None:
     )
 
 
-configure_cors(app)
-
-
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     """Middleware to add security headers to all responses."""
 
@@ -122,11 +119,17 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         return response
 
 
-# Add Security Headers middleware
-app.add_middleware(SecurityHeadersMiddleware)
+def configure_middleware(app: FastAPI) -> None:
+    """Add the middleware stack. The middleware added last runs first."""
+    app.add_middleware(SecurityHeadersMiddleware)
+    # Only enforced once the first user exists
+    app.add_middleware(BasicAuthMiddleware)
+    # CORS has to run before authentication: browsers send preflight requests
+    # without credentials, and they need CORS headers to read auth errors
+    configure_cors(app)
 
-# Add Basic Auth middleware (only enforced when enabled in settings)
-app.add_middleware(BasicAuthMiddleware)
+
+configure_middleware(app)
 
 # Mount API routers
 app.include_router(videos.router, prefix="/api/v1")
