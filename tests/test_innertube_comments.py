@@ -61,3 +61,36 @@ async def test_get_comments_empty_when_section_missing(monkeypatch):
     monkeypatch.setattr("innertube._comments.innertube_post", fake_post)
     result = await get_comments("abc")
     assert result["comments"] == []
+
+
+def _reply(comment_id):
+    return {"commentViewModel": {"commentViewModel": {"commentId": comment_id}}}
+
+
+def test_reply_page_returns_show_more_replies_token():
+    """Reply pages put the next token in a button rather than a continuation endpoint."""
+    from innertube._comments import _parse_comments_response
+
+    data = {
+        "onResponseReceivedEndpoints": [
+            {
+                "appendContinuationItemsAction": {
+                    "continuationItems": [
+                        _reply("reply-1"),
+                        {
+                            "continuationItemRenderer": {
+                                "button": {
+                                    "buttonRenderer": {
+                                        "text": {"runs": [{"text": "Show more replies"}]},
+                                        "command": {"continuationCommand": {"token": "more-replies"}},
+                                    }
+                                }
+                            }
+                        },
+                    ]
+                }
+            }
+        ]
+    }
+
+    assert _parse_comments_response(data)["continuation"] == "more-replies"

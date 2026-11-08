@@ -283,6 +283,18 @@ def _build_entity_map(data: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
     return entity_map
 
 
+def _continuation_token(renderer: Dict[str, Any]) -> Optional[str]:
+    """Read the token of a continuationItemRenderer.
+
+    Comment pages carry it in a continuation endpoint, while reply pages put it
+    in their "Show more replies" button.
+    """
+    command = renderer.get("continuationEndpoint") or (
+        renderer.get("button", {}).get("buttonRenderer", {}).get("command", {})
+    )
+    return command.get("continuationCommand", {}).get("token")
+
+
 def _parse_comments_response(data: Dict[str, Any]) -> Dict[str, Any]:
     """Parse an InnerTube continuation response containing comments.
 
@@ -366,12 +378,7 @@ def _parse_comments_response(data: Dict[str, Any]) -> Dict[str, Any]:
                     comments.append(_parse_entity_comment(entity_map[comment_id]))
 
             elif "continuationItemRenderer" in item:
-                token = (
-                    item["continuationItemRenderer"]
-                    .get("continuationEndpoint", {})
-                    .get("continuationCommand", {})
-                    .get("token")
-                )
+                token = _continuation_token(item["continuationItemRenderer"])
                 if token:
                     continuation = token
 
