@@ -1761,3 +1761,15 @@ class TestChannelSearchResults:
         assert result.channelHandle is None
         assert result.subCount == 1_200_000
         assert result.videoCount == 345
+
+
+class TestYtdlpDescription:
+    """yt-dlp only provides the plain-text description."""
+
+    def test_plain_description_is_not_reported_as_html(self):
+        from converters import ytdlp_to_video_response
+
+        info = {"id": "abc123def45", "title": "Video", "description": "1 < 2\nhttps://example.com", "formats": []}
+        resp = ytdlp_to_video_response(info, "http://localhost")
+        assert resp.description == "1 < 2\nhttps://example.com"
+        assert resp.descriptionHtml is None

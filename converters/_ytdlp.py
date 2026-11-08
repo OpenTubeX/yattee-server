@@ -180,7 +180,7 @@ def ytdlp_to_video_response(
         videoId=video_id,
         title=info.get("title", ""),
         description=info.get("description"),
-        descriptionHtml=info.get("description"),  # yt-dlp doesn't provide HTML
+        descriptionHtml=None,  # yt-dlp only provides plain text
         author=info.get("uploader") or info.get("channel") or "",
         authorId=author_id,
         authorUrl=author_url,
