@@ -11,6 +11,7 @@ from innertube._converters import (
     _parse_count_text,
     grid_playlist_to_invidious,
     grid_video_to_invidious,
+    lockup_view_model_to_invidious,
     rich_item_to_invidious,
     video_renderer_to_invidious,
 )
@@ -123,6 +124,24 @@ def _extract_items_from_tab(data: Dict[str, Any]) -> tuple[List[Dict], Optional[
                         items.append(grid_video_to_invidious(content["gridVideoRenderer"]))
                     elif "gridPlaylistRenderer" in content:
                         items.append(grid_playlist_to_invidious(content["gridPlaylistRenderer"]))
+                    elif "gridRenderer" in content:
+                        # The playlists tab lists playlist lockups in a grid
+                        for grid_item in content["gridRenderer"].get("items", []):
+                            if "lockupViewModel" in grid_item:
+                                converted = lockup_view_model_to_invidious(grid_item["lockupViewModel"])
+                                if converted:
+                                    items.append(converted)
+                            elif "gridPlaylistRenderer" in grid_item:
+                                items.append(grid_playlist_to_invidious(grid_item["gridPlaylistRenderer"]))
+                            elif "continuationItemRenderer" in grid_item:
+                                token = (
+                                    grid_item["continuationItemRenderer"]
+                                    .get("continuationEndpoint", {})
+                                    .get("continuationCommand", {})
+                                    .get("token")
+                                )
+                                if token:
+                                    continuation = token
 
                 # Check for continuation in section
                 if "continuationItemRenderer" in section:
@@ -154,6 +173,10 @@ def _extract_items_from_continuation(data: Dict[str, Any]) -> tuple[List[Dict], 
                 items.append(grid_video_to_invidious(item["gridVideoRenderer"]))
             elif "gridPlaylistRenderer" in item:
                 items.append(grid_playlist_to_invidious(item["gridPlaylistRenderer"]))
+            elif "lockupViewModel" in item:
+                converted = lockup_view_model_to_invidious(item["lockupViewModel"])
+                if converted:
+                    items.append(converted)
             elif "videoRenderer" in item:
                 items.append(video_renderer_to_invidious(item["videoRenderer"]))
             elif "continuationItemRenderer" in item:
