@@ -13,6 +13,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from innertube._client import InnerTubeError, innertube_post
 from innertube._converters import (
     channel_renderer_to_invidious,
+    grid_video_to_invidious,
     lockup_view_model_to_invidious,
     playlist_renderer_to_invidious,
     video_renderer_to_invidious,
@@ -108,6 +109,29 @@ def _parse_result_item(item: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     return None
 
 
+def _parse_section_item(item: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Convert a search section entry, including the videos of topic shelves such as "Minecraft tutorial".
+
+    Shorts shelves are left out, as they name the videos without their channels.
+    """
+    shelf = item.get("shelfRenderer")
+    if shelf is None:
+        converted = _parse_result_item(item)
+        return [converted] if converted else []
+
+    content = shelf.get("content", {})
+    list_renderer = content.get("horizontalListRenderer") or content.get("verticalListRenderer") or {}
+    results = []
+    for shelf_item in list_renderer.get("items", []):
+        if "gridVideoRenderer" in shelf_item:
+            results.append(grid_video_to_invidious(shelf_item["gridVideoRenderer"]))
+        else:
+            converted = _parse_result_item(shelf_item)
+            if converted:
+                results.append(converted)
+    return results
+
+
 def _parse_search_results(data: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], Optional[str]]:
     """Parse mixed search results and continuation token from an InnerTube search response.
 
@@ -128,9 +152,7 @@ def _parse_search_results(data: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], O
     for section in sections:
         if "itemSectionRenderer" in section:
             for item in section["itemSectionRenderer"].get("contents", []):
-                converted = _parse_result_item(item)
-                if converted:
-                    results.append(converted)
+                results.extend(_parse_section_item(item))
         elif "continuationItemRenderer" in section:
             token = _extract_continuation_token(section["continuationItemRenderer"])
             if token:
@@ -142,15 +164,22 @@ def _parse_search_results(data: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], O
         for item in append.get("continuationItems", []):
             if "itemSectionRenderer" in item:
                 for content in item["itemSectionRenderer"].get("contents", []):
-                    converted = _parse_result_item(content)
-                    if converted:
-                        results.append(converted)
+                    results.extend(_parse_section_item(content))
             elif "continuationItemRenderer" in item:
                 token = _extract_continuation_token(item["continuationItemRenderer"])
                 if token:
                     continuation = token
 
-    return results, continuation
+    # Shelves can repeat videos from the main results
+    seen = set()
+    unique = []
+    for result in results:
+        key = (result.get("type"), result.get("videoId") or result.get("playlistId") or result.get("authorId"))
+        if key not in seen:
+            seen.add(key)
+            unique.append(result)
+
+    return unique, continuation
 
 
 async def _fetch_initial(
